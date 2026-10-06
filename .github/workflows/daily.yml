@@ -1,1 +1,36 @@
-1
+name: 每日 8 点运行
+
+on:
+  schedule:
+    # GitHub Actions 的 cron 一律按 UTC 时间写
+    # 北京时间 8:00 = UTC 0:00
+    - cron: '0 0 * * *'
+  workflow_dispatch:  # 允许在 Actions 页面手动点一下立即跑一次（用来验证）
+
+jobs:
+  fetch-nodes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10  # 兜底：10 分钟还没跑完就强制结束，不浪费额度
+    permissions:
+      contents: write  # 允许把生成的订阅链接提交回仓库
+    steps:
+      - name: 拉取代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: 运行脚本
+        run: node uploadBase64.js
+
+      - name: 把订阅链接提交回仓库
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -f clash_subscribe_link.txt
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: 每日更新订阅链接"
+            git push
+          fi
